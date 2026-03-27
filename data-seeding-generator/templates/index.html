@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casa Tuning | Ultra Data Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .progress-bar { transition: width 0.4s ease; }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .step-active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 min-h-screen font-sans">
+
+    <div class="container mx-auto p-6">
+        <header class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-black text-white tracking-tighter">
+                    <i class="fas fa-bolt text-yellow-400 mr-2"></i>CASA TUNING <span class="text-blue-500">ENGINE</span>
+                </h1>
+                <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">Generador de Datos Sintéticos v3.0</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
+                    <span class="w-2 h-2 {{ 'bg-green-500' if db_status == 'ACTIVE' else 'bg-red-500' }} rounded-full animate-pulse"></span>
+                    <span class="text-[10px] font-mono uppercase tracking-tighter">{{ db_status }} SERVER</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 space-y-6">
+                <div class="glass-card p-6 rounded-3xl shadow-2xl">
+                    <h2 class="text-lg font-bold mb-6 text-blue-400 flex items-center">
+                        <i class="fas fa-sliders-h mr-3"></i> Parámetros de Inyección
+                    </h2>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Entidad / Flujo Lógico</label>
+                            <select id="tabla_select" class="w-full bg-slate-950 border border-slate-700 p-3 rounded-xl text-white focus:border-blue-500 outline-none transition" onchange="actualizarGuia()">
+                                <option value="roles">0. Configuración Base (Roles)</option>
+                                <option value="usuarios">1. Personal (Usuarios/Mecánicos)</option>
+                                <option value="proveedores">2. Proveedores e Inventario</option>
+                                <option value="clientes">3. Clientes, Motos y Citas</option>
+                                <option value="reparaciones">4. Operaciones (Reparaciones y Pagos)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Cantidad de Registros</label>
+                            <input type="number" id="n_registros" value="100" class="w-full bg-slate-950 border border-slate-700 p-3 rounded-xl text-white outline-none focus:border-blue-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Batch Size</label>
+                                <input type="number" id="batch_size" value="500" class="w-full bg-slate-950 border border-slate-700 p-3 rounded-xl text-white text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Seed (Semilla)</label>
+                                <input type="number" id="seed" placeholder="Opcional" class="w-full bg-slate-950 border border-slate-700 p-3 rounded-xl text-white text-sm outline-none">
+                            </div>
+                        </div>
+
+                        <div id="guia_container" class="bg-slate-950/50 border border-slate-800 p-4 rounded-xl">
+                            <h4 class="text-[10px] font-bold text-yellow-500 uppercase mb-2"><i class="fas fa-project-diagram mr-1"></i> Dependencias de Tabla</h4>
+                            <p id="guia_texto" class="text-[11px] text-slate-400 leading-relaxed italic">
+                                Seleccione una tabla para ver los requisitos de integridad.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button onclick="iniciarGeneracion()" class="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-600/20 transition-all flex justify-center items-center group">
+                        <i class="fas fa-bolt mr-2 group-hover:animate-bounce"></i> EJECUTAR SECUENCIA
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-6">
+                
+                <div class="glass-card p-6 rounded-3xl border border-slate-700">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-white uppercase tracking-tighter">Monitor en Tiempo Real</h2>
+                        <span id="porcentaje_txt" class="text-blue-400 font-mono font-bold text-xl">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden">
+                        <div id="barra_progreso" class="progress-bar bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-500 h-full w-0 shadow-[0_0_15px_rgba(37,99,235,0.4)]"></div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 mt-8">
+                        <div class="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                            <p class="text-[9px] text-slate-500 uppercase font-black mb-1 tracking-widest">Estatus</p>
+                            <p id="m_status" class="text-sm font-bold text-blue-400 font-mono">STANDBY</p>
+                        </div>
+                        <div class="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                            <p class="text-[9px] text-slate-500 uppercase font-black mb-1 tracking-widest">Inserciones</p>
+                            <p id="m_ins" class="text-sm font-bold text-white font-mono">0</p>
+                        </div>
+                        <div class="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                            <p class="text-[9px] text-slate-500 uppercase font-black mb-1 tracking-widest">Tiempo Motor</p>
+                            <p id="m_time" class="text-sm font-bold text-green-400 font-mono">-- ms</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-3xl border border-slate-700">
+                    <h2 class="text-lg font-bold mb-6 text-orange-400 flex items-center">
+                        <i class="fas fa-file-export mr-3"></i> Centro de Exportación de Datos
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="descargar('sql')" class="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-2xl border border-slate-800 hover:border-orange-500 transition group">
+                            <i class="fas fa-database text-3xl mb-3 text-slate-600 group-hover:text-orange-500"></i>
+                            <span class="text-xs font-bold uppercase">Generar .SQL</span>
+                            <span class="text-[9px] text-slate-500 mt-1">Scripts de Inserción</span>
+                        </button>
+                        <button onclick="descargar('excel')" class="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-2xl border border-slate-800 hover:border-green-500 transition group">
+                            <i class="fas fa-file-excel text-3xl mb-3 text-slate-600 group-hover:text-green-500"></i>
+                            <span class="text-xs font-bold uppercase">Reporte Excel</span>
+                            <span class="text-[9px] text-slate-500 mt-1">Dataset .XLSX</span>
+                        </button>
+                        <button onclick="descargar('csv')" class="flex flex-col items-center justify-center p-6 bg-slate-950 rounded-2xl border border-slate-800 hover:border-blue-500 transition group">
+                            <i class="fas fa-file-csv text-3xl mb-3 text-slate-600 group-hover:text-blue-500"></i>
+                            <span class="text-xs font-bold uppercase">Archivo CSV</span>
+                            <span class="text-[9px] text-slate-500 mt-1">Valores por Comas</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-black p-4 rounded-2xl border border-slate-800 h-48 font-mono text-[11px] overflow-y-auto shadow-inner" id="console">
+                    <p class="text-slate-600">// Casa Tuning Engine terminal v3.0.1 ready...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const guias = {
+            'roles': 'Configura los Roles base (Admin, Técnico, Cliente). **Obligatorio para el resto de tablas.**',
+            'usuarios': 'Genera Personal. Requiere Roles previos. Crea mecánicos con IdRol=2 automáticamente.',
+            'proveedores': 'Crea Proveedores y llena el Stock de Inventario. Requiere Proveedores para existir.',
+            'clientes': 'Genera Clientes, sus Motos vinculadas y Citas. Requiere Roles de Cliente.',
+            'reparaciones': 'Flujo Completo: Crea Reparaciones, Facturas y Pagos. **Requiere Motos y Técnicos previos.**'
+        };
+
+        function actualizarGuia() {
+            const val = document.getElementById('tabla_select').value;
+            document.getElementById('guia_texto').innerHTML = `<i class="fas fa-arrow-right text-blue-500 mr-2"></i> ${guias[val]}`;
+        }
+
+        function log(msg, color = 'text-slate-500') {
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += `<p class="${color}">[${new Date().toLocaleTimeString()}] > ${msg}</p>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function descargar(formato) {
+            const tabla = document.getElementById('tabla_select').value;
+            log(`Exportando tabla ${tabla.toUpperCase()} a formato ${formato.toUpperCase()}...`, 'text-orange-400');
+            window.location.href = `/exportar/${formato}/${tabla}`;
+        }
+
+        async function iniciarGeneracion() {
+            const config = {
+                tabla: document.getElementById('tabla_select').value,
+                n: document.getElementById('n_registros').value,
+                batch: document.getElementById('batch_size').value,
+                seed: document.getElementById('seed').value
+            };
+
+            // Reset UI
+            log(`Ejecutando proceso: Inyección de ${config.n} registros en ${config.tabla}...`, 'text-blue-400');
+            document.getElementById('m_status').innerText = "RUNNING";
+            document.getElementById('barra_progreso').style.width = '0%';
+            
+            // Animación de barra ficticia mientras el servidor procesa
+            let progreso = 0;
+            const interval = setInterval(() => {
+                progreso += Math.random() * 5;
+                if (progreso >= 95) { progreso = 95; clearInterval(interval); }
+                document.getElementById('barra_progreso').style.width = progreso + '%';
+                document.getElementById('porcentaje_txt').innerText = Math.floor(progreso) + '%';
+            }, 200);
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch('/ejecutar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+                const res = await response.json();
+                const endTime = performance.now();
+                
+                clearInterval(interval);
+                
+                if (res.status === 'success') {
+                    document.getElementById('barra_progreso').style.width = '100%';
+                    document.getElementById('porcentaje_txt').innerText = '100%';
+                    log(`✅ ÉXITO: Inyección completada.`, 'text-green-400');
+                    document.getElementById('m_status').innerText = "SUCCESS";
+                    document.getElementById('m_ins').innerText = config.n;
+                    document.getElementById('m_time').innerText = Math.floor(endTime - startTime) + " ms";
+                } else {
+                    log(`❌ ERROR MOTOR: ${res.message}`, 'text-red-500');
+                    document.getElementById('m_status').innerText = "ERROR";
+                    document.getElementById('barra_progreso').style.width = '0%';
+                }
+            } catch (e) {
+                clearInterval(interval);
+                log('❌ FALLO CRÍTICO: El motor no responde.', 'text-red-500');
+                document.getElementById('m_status').innerText = "OFFLINE";
+            }
+        }
+
+        // Inicializar guía al cargar
+        actualizarGuia();
+    </script>
+</body>
+</html>
